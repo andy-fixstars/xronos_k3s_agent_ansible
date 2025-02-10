@@ -8,43 +8,57 @@
   ansible.builtin.command:
     cmd: /usr/local/bin/k3s --version
 
-- name: Download k3s install script
-  ansible.builtin.get_url:
-    url: https://get.k3s.io/
-    dest: "{{ ansible_env.HOME }}/.cache/k3s-install.sh"
-    mode: u=rwx,g=rx,o=
-
-- name: Disable legacy k3s service
-  become: true
-  ignore_errors: true
-  failed_when: false
-  ansible.builtin.systemd:
-    name: k3s
-    state: stopped
-    enabled: false
-
-- name: Delete service k3s
-  register: _k3s_service
-  become: true
-  ansible.builtin.file:
-    path: /lib/systemd/system/k3s.service
-    state: absent
-
-- name: Systemd deamon reload
-  become: true
-  ansible.builtin.systemd:
-    daemon_reload: "{{ _k3s_service.changed }}"
-
-- name: Install k3s agent {{ k3s_version }}
+- name: Install k3s agent
   when: _k3s_version_query.rc != 0
         or (k3s_version and k3s_version not in _k3s_version_query.stdout)
-  ansible.builtin.command:
-    cmd: "{{ ansible_env.HOME }}/.cache/k3s-install.sh agent"
-  environment:
-    INSTALL_K3S_VERSION: "{{ k3s_version | default('stable') }}"
-    K3S_URL: "{{ k3s_api_endpoint }}"
-    K3S_TOKEN: "{{ k3s_token }}"
-    K3S_KUBECONFIG_MODE: "0660"
+  block:
+    - name: Stat ~/.cache
+      register: _cache_folder_query
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.cache"
+
+    - name: Create ~/.cache
+      when: not _cache_folder_query.stat.exists
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.cache"
+        state: directory
+        mode: u=rwx,g=,o=
+
+    - name: Download k3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io/
+        dest: "{{ ansible_env.HOME }}/.cache/k3s-install.sh"
+        mode: u=rwx,g=rx,o=
+
+    - name: Disable legacy k3s service
+      become: true
+      ignore_errors: true
+      failed_when: false
+      ansible.builtin.systemd:
+        name: k3s
+        state: stopped
+        enabled: false
+
+    - name: Delete service k3s
+      register: _k3s_service
+      become: true
+      ansible.builtin.file:
+        path: /lib/systemd/system/k3s.service
+        state: absent
+
+    - name: Systemd deamon reload
+      become: true
+      ansible.builtin.systemd:
+        daemon_reload: "{{ _k3s_service.changed }}"
+
+    - name: Install k3s agent {{ k3s_version }}
+      ansible.builtin.command:
+        cmd: "{{ ansible_env.HOME }}/.cache/k3s-install.sh agent"
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version | default('stable') }}"
+        K3S_URL: "{{ k3s_api_endpoint }}"
+        K3S_TOKEN: "{{ k3s_token }}"
+        K3S_KUBECONFIG_MODE: "0660"
 
 - name: Service k3s-agent start
   become: true
