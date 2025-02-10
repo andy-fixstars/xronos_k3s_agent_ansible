@@ -1,65 +1,8 @@
 # SPDX-FileCopyrightText: (c) 2025 Xronos Inc.
 # SPDX-License-Identifier: BSD-3-Clause
 ---
-- name: Create user cache directory
-  ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.cache"
-    state: directory
+- name: Install k3s-agent
+  ansible.builtin.import_tasks: k3s-agent.yml
 
-- name: Query k3s installed version
-  register: _k3s_version_query
-  changed_when: false
-  failed_when: false
-  ansible.builtin.command:
-    cmd: /usr/local/bin/k3s --version
-
-- name: Download k3s install script
-  ansible.builtin.get_url:
-    url: https://get.k3s.io/
-    dest: "{{ ansible_env.HOME }}/.cache/k3s-install.sh"
-    mode: u+x
-
-- name: Service k3s disable
-  become: true
-  ignore_errors: true
-  failed_when: false
-  ansible.builtin.systemd:
-    name: k3s
-    state: stopped
-    enabled: false
-
-- name: Delete service k3s
-  register: _k3s_service
-  become: true
-  ansible.builtin.file:
-    path: /lib/systemd/system/k3s.service
-    state: absent
-
-- name: Systemd deamon reload
-  become: true
-  ansible.builtin.systemd:
-    daemon_reload: "{{ _k3s_service.changed }}"
-
-- name: Install k3s agent {{ k3s_version }}
-  when: _k3s_version_query.rc != 0
-        or (k3s_version and k3s_version not in _k3s_version_query.stdout)
-  ansible.builtin.command:
-    cmd: "{{ ansible_env.HOME }}/.cache/k3s-install.sh agent"
-  environment:
-    INSTALL_K3S_VERSION: "{{ k3s_version | default('stable') }}"
-    K3S_URL: "{{ k3s_api_endpoint }}"
-    K3S_TOKEN: "{{ k3s_token }}"
-
-- name: Service k3s-agent start
-  become: true
-  ansible.builtin.systemd:
-    name: k3s-agent
-    state: started
-
-- name: Verify k3s installed version
-  register: _k3s_version_query
-  changed_when: false
-  failed_when: _k3s_version_query.rc != 0
-              or (k3s_version and k3s_version not in _k3s_version_query.stdout)
-  ansible.builtin.command:
-    cmd: /usr/local/bin/k3s --version
+- name: Configure user {{ ansible_user }} for access to k3s
+  ansible.builtin.import_tasks: user.yml

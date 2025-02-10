@@ -1,0 +1,19 @@
+---
+- name: Add user to k3s group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups:
+      - k3s
+    append: true
+
+- name: Reset connection to apply group change
+  changed_when: false
+  ansible.builtin.meta:
+    reset_connection
+
+- name: Add k3s autocomplete to user bashrc
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    regexp: '\.\s+<\(k3s completion bash\)'
+    line: ". <(k3s completion bash)  # Added by xronos_k3s_server_ansible"
