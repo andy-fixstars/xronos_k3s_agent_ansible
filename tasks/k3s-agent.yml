@@ -10,7 +10,7 @@
 
 - name: Install k3s agent
   when: _k3s_version_query.rc != 0
-        or (k3s_version and k3s_version not in _k3s_version_query.stdout)
+        or (xronos_k3s_client_version and xronos_k3s_client_version not in _k3s_version_query.stdout)
   block:
     - name: Stat ~/.cache
       register: _cache_folder_query
@@ -30,34 +30,13 @@
         dest: "{{ ansible_env.HOME }}/.cache/k3s-install.sh"
         mode: u=rwx,g=rx,o=
 
-    - name: Disable legacy k3s service
-      become: true
-      ignore_errors: true
-      failed_when: false
-      ansible.builtin.systemd:
-        name: k3s
-        state: stopped
-        enabled: false
-
-    - name: Delete service k3s
-      register: _k3s_service
-      become: true
-      ansible.builtin.file:
-        path: /lib/systemd/system/k3s.service
-        state: absent
-
-    - name: Systemd deamon reload
-      become: true
-      ansible.builtin.systemd:
-        daemon_reload: "{{ _k3s_service.changed }}"
-
-    - name: Install k3s agent {{ k3s_version }}
+    - name: Install k3s agent {{ xronos_k3s_client_version }}
       ansible.builtin.command:
         cmd: "{{ ansible_env.HOME }}/.cache/k3s-install.sh agent"
       environment:
-        INSTALL_K3S_VERSION: "{{ k3s_version | default('stable') }}"
-        K3S_URL: "{{ k3s_api_endpoint }}"
-        K3S_TOKEN: "{{ k3s_token }}"
+        INSTALL_K3S_VERSION: "{{ xronos_k3s_client_version | default('stable') }}"
+        K3S_URL: "{{ xronos_k3s_client_api_endpoint }}"
+        K3S_TOKEN: "{{ xronos_k3s_client_token }}"
         K3S_KUBECONFIG_MODE: "0660"
 
 - name: Service k3s-agent start
@@ -70,7 +49,7 @@
   register: _k3s_version_query
   changed_when: false
   failed_when: _k3s_version_query.rc != 0
-              or (k3s_version and k3s_version not in _k3s_version_query.stdout)
+              or (xronos_k3s_client_version and xronos_k3s_client_version not in _k3s_version_query.stdout)
   ansible.builtin.command:
     cmd: /usr/local/bin/k3s --version
 
@@ -88,7 +67,13 @@
     group: k3s
     mode: u=rwx,g=rwx,o=rx
 
+- name: Stat k3s configuration file
+  register: _k3s_config_query
+  ansible.builtin.stat:
+    path: /etc/rancher/k3s/k3s.yaml
+
 - name: Add group k3s to k3s configuration file
+  when: _k3s_config_query.stat.exists
   become: true
   ansible.builtin.file:
     path: /etc/rancher/k3s/k3s.yaml

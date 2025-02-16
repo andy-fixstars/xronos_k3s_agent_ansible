@@ -4,7 +4,6 @@ Provision a host with k3s agent.
 
 This role performs the following steps:
 
-- Disables existing k3s service (if any)
 - Installs k3s from the official install script
 - Configures `k3s-agent` systemd service
 
