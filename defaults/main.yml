@@ -1,2 +1,3 @@
 ---
 xronos_k3s_client_version:
+xronos_k3s_client_node_name: "{{ inventory_hostname }}"
