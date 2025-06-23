@@ -32,7 +32,9 @@
 
     - name: Install k3s agent {{ xronos_k3s_client_version }}
       ansible.builtin.command:
-        cmd: "{{ ansible_env.HOME }}/.cache/k3s-install.sh agent"
+        cmd: |-
+          {{ ansible_env.HOME }}/.cache/k3s-install.sh agent
+            --node-label host={{ inventory_hostname }}
       environment:
         INSTALL_K3S_VERSION: "{{ xronos_k3s_client_version | default('stable') }}"
         K3S_URL: "{{ xronos_k3s_client_api_endpoint }}"
